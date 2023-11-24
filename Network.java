@@ -38,27 +38,39 @@ class Router {
     int numberOfConnection;
     int maxConnections;
     ArrayList<Device> devices = new ArrayList<>();
+    boolean [] occupiedConnections; // if true then connection is occupied
 
     public Router(int maxConnections, ArrayList<Device> devices) {
         this.maxConnections = maxConnections;
         semaphore = new Semaphore(maxConnections);
         numberOfConnection = 0;
         this.devices = devices;
+        occupiedConnections = new boolean[maxConnections];
     }
-    public void occupyConnection(String deviceName,String deviceType) throws InterruptedException{
+    public int occupyConnection(String deviceName,String deviceType) throws InterruptedException {
         semaphore.acquire(deviceName,deviceType);
         synchronized (this) {
+            int i = 0;
+            for (; i < maxConnections; i++) {
+                if (!occupiedConnections[i]) {
+                    occupiedConnections[i] = true;
+                    break;
+                }
+            }
             numberOfConnection++;
-            System.out.println("Connection " + numberOfConnection + " : " + deviceName + " Occupied");
+            System.out.println("Connection " + (i+1) + " : " + deviceName + " Occupied");
+            return i+1;
         }
     }
-    public void releaseConnection(String deviceName) throws InterruptedException{
-        semaphore.release();
+    public void releaseConnection(String deviceName, int index) throws InterruptedException {
         synchronized (this) {
-            System.out.println("Connection " + numberOfConnection + " : " + deviceName + " Logged out");
+            System.out.println("Connection " + (index) + " : " + deviceName + " Logged out");
             numberOfConnection--;
+            occupiedConnections[index-1] = false; // no longer occupied
         }
+        semaphore.release();
     }
+
     public int getNumberOfConnection() {
         return numberOfConnection;
     }
@@ -71,7 +83,7 @@ class Device extends Thread {
     private final Router router;
     private final String name;
     private final String type;
-
+    private int connectionId;
     public Device(Router router, String name, String type) {
         this.router = router;
         this.name = name;
@@ -86,12 +98,11 @@ class Device extends Thread {
     @Override
     public void run() {
         try {
-            //make occupyConnection called once the deviced started
-//            router.occupyConnection(name,type);
-            System.out.println("Connection " + router.getNumberOfConnection() + " : " + name + " Logged in\n"
-                    +"Connection " + router.getNumberOfConnection() + " : " + name + " Performs online activity");
+            connectionId = router.occupyConnection(name,type);
+            System.out.println("Connection " + connectionId + " : " + name + " Logged in\n"
+                    + "Connection " + connectionId + " : " + name + " Performs online activity");
             sleepRandomTime();
-            router.releaseConnection(name);
+            router.releaseConnection(name, connectionId);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -108,7 +119,6 @@ public class Network {
         int N = scanner.nextInt();
         System.out.println("What is the number of devices Clients want to connect?");
         int TC = scanner.nextInt();
-        Queue<Device> queue = new LinkedList<>();
         ArrayList<Device> devices = new ArrayList<>();
         Router router = new Router(N,devices);
         for (int i = 0; i < TC; i++) {
@@ -117,7 +127,6 @@ public class Network {
             devices.add(new Device(router,name, type));
         }
         for(int i=0;i<TC;i++){
-            router.occupyConnection(devices.get(i).name(),devices.get(i).getType());
             devices.get(i).start();
         }
     }
