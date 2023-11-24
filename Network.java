@@ -1,7 +1,9 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Scanner;
-import java.util.LinkedList;
-import java.util.Queue;
 class Semaphore {
     private int value;
 
@@ -120,13 +122,22 @@ public class Network {
         System.out.println("What is the number of devices Clients want to connect?");
         int TC = scanner.nextInt();
         ArrayList<Device> devices = new ArrayList<>();
-        Router router = new Router(N,devices);
+        Router router = new Router(N, devices);
+
+        // Redirect System.out to a file named "log.txt"
+        try {
+            PrintStream fileOut = new PrintStream(new FileOutputStream("log.txt"));
+            System.setOut(fileOut);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
         for (int i = 0; i < TC; i++) {
             String name = scanner.next();
             String type = scanner.next();
-            devices.add(new Device(router,name, type));
+            devices.add(new Device(router, name, type));
         }
-        for(int i=0;i<TC;i++){
+        for (int i = 0; i < TC; i++) {
             devices.get(i).start();
         }
     }
